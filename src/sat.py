@@ -133,8 +133,48 @@ class SatSolver(SatSolverAbstractClass):
         else:
             return False, {}
 
-    def sat_bruteforce(self, n_vars:int, clauses:List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
-        pass
+    def sat_bruteforce(self, n_vars: int, clauses: List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
+        ## I decided to use dfs instead of itertools because I am unfamiliar with that library.
+        ## It does generate all combinations (I didn't prune or backtrack so it is brute force)
+        ## I simply dfs through all variable assignment.
+
+        res = {}
+
+        def evaluate_res(assignment: Dict[int, bool]) -> Tuple[bool, Dict[int, bool]]:
+            # Check each clause
+            for clause in clauses:
+                satisfied = False
+                for literal in clause:
+                    var = abs(literal)
+                    value = assignment[var]
+                    if (literal > 0 and value) or (literal < 0 and not value):
+                        satisfied = True
+                        break
+                if not satisfied:
+                    return False, {}
+            return True, assignment.copy()
+
+        def dfs(var_index: int) -> Tuple[bool, Dict[int, bool]]:
+            # Base case full assignment
+            if var_index > n_vars:
+                return evaluate_res(res)
+
+            # Try False
+            res[var_index] = False
+            ok, sol = dfs(var_index + 1)
+            if ok:
+                return True, sol
+
+            # Try True
+            res[var_index] = True
+            ok, sol = dfs(var_index + 1)
+            if ok:
+                return True, sol
+
+            # No assignment worked
+            return False, {}
+
+        return dfs(1)
 
     #Implemented as a variation of Backtracking.
     def sat_bestcase(self, n_vars:int, clauses:List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
