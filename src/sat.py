@@ -57,13 +57,199 @@ class SatSolver(SatSolverAbstractClass):
 
 
     def sat_backtracking(self, n_vars:int, clauses:List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
-        pass
+        # Evaluate a single clause under an assignment.
+        def eval_clause(clause, assignment: Dict[int, bool]):
+            has_unassigned = False
+            for lit in clause:
+                var = abs(lit)
+                if var in assignment:
+                    val = assignment[var]
+                    # satisfied
+                    if (lit > 0 and val) or (lit < 0 and not val):
+                        return True
+                else:
+                    has_unassigned = True
+            # none was true
+            if has_unassigned:
+                return None
+            else:
+                # all evaluated to False
+                return False
+
+        # Check if current assignment  makes clause impossible
+        def has_conflict(assignment: Dict[int, bool]) -> bool:
+            for clause in clauses:
+                res = eval_clause(clause, assignment)
+                if res is False:
+                    return True
+            return False
+
+        # Check if all clauses are already satisfied
+        def all_clauses_satisfied(assignment: Dict[int, bool]) -> bool:
+            if not clauses:
+                return True
+            for clause in clauses:
+                res = eval_clause(clause, assignment)
+                if res is not True:
+                    return False
+            return True
+
+        # Prune if any clause is already impossible
+        def backtrack(assignment: Dict[int, bool]) -> Tuple[bool, Dict[int, bool]]:
+            if has_conflict(assignment):
+                return False, {}
+
+            # All clauses satisfied, so solution
+            if all_clauses_satisfied(assignment):
+                full_assign = assignment.copy()
+                for v in range(1, n_vars + 1):
+                    if v not in full_assign:
+                        full_assign[v] = False
+                return True, full_assign
+
+            # Select next unasigned var
+            next_var = None
+            for v in range(1, n_vars + 1):
+                if v not in assignment:
+                    next_var = v
+                    break
+
+            # Brach fails
+            if next_var is None:
+                return False, {}
+
+            for value in (True, False):
+                assignment[next_var] = value
+                sat, sol = backtrack(assignment)
+                if sat:
+                    return True, sol
+                del assignment[next_var]
+
+            return False, {}
+
+        sat, sol = backtrack({})
+        if sat:
+            return True, sol
+        else:
+            return False, {}
 
     def sat_bruteforce(self, n_vars:int, clauses:List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
         pass
 
+    #Implemented as a variation of Backtracking.
     def sat_bestcase(self, n_vars:int, clauses:List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
-        pass
+        
+        #evaluate single clause under an assignment
+        def eval_clause(clause, assignment: Dict[int, bool]):
+            has_unassigned = False
+
+            for lit in clause:
+                var = abs(lit)
+
+                if var in assignment:
+                    val = assignment[var]
+
+                    if (lit > 0 and val) or (lit < 0 and not val):
+                        return True
+                else:
+                    has_unassigned = True
+
+            if has_unassigned:
+                return None
+            
+            return False
+
+        #check to see if current assignment makes clause impossible
+        def has_conflict(assignment: Dict[int, bool]) -> bool:
+            for clause in clauses:
+                if eval_clause(clause, assignment) is False:
+                    return True
+                
+            return False
+
+        #check if we are done
+        def all_clauses_satisfied(assignment: Dict[int, bool]) -> bool:
+            if not clauses:
+                return True
+            
+            for clause in clauses:
+                if eval_clause(clause, assignment) is not True:
+                    return False
+                
+            return True
+
+        #fill in any unassigned variables with False so we have a complete assignment
+        def fill_assignment(assignment: Dict[int, bool]) -> Dict[int, bool]:
+            return {v: assignment.get(v, False) for v in range(1, n_vars + 1)}
+
+        #count how many clauses are satisfied by this assignemnt, used for tracking
+        def count_satisfied(assignment: Dict[int, bool]) -> int:
+            total = 0
+
+            for clause in clauses:
+                if eval_clause(clause, assignment) is True:
+                    total += 1
+            return total
+
+        #best so far assignemnt
+        best_assignment: Dict[int, bool] = {}
+        best_score = -1
+
+        #store solution if found
+        solution: Dict[int, bool] | None = None
+
+        #given a partial assignment, extend it to see how many clauses it satisfies. If better than current best, record
+        def record_candidate(candidate: Dict[int, bool]):
+            nonlocal best_assignment, best_score
+            filled = fill_assignment(candidate)
+            score = count_satisfied(filled)
+            if score > best_score:
+                best_score = score
+                best_assignment = filled.copy()
+
+        #standard backtracking search, true is a satisfying assignment was found
+        def backtrack(assignment: Dict[int, bool]) -> bool:
+            nonlocal solution, best_assignment, best_score
+
+            if has_conflict(assignment):
+                record_candidate(assignment)
+                return False
+
+            if all_clauses_satisfied(assignment):
+                solved = fill_assignment(assignment)
+                best_assignment = solved.copy()
+                best_score = len(clauses)
+                solution = solved
+                return True
+
+            if len(assignment) == n_vars:
+                record_candidate(assignment)
+                return False
+
+            next_var = None
+            for v in range(1, n_vars + 1):
+                if v not in assignment:
+                    next_var = v
+                    break
+            if next_var is None:
+                record_candidate(assignment)
+                return False
+
+            for value in (True, False):
+                assignment[next_var] = value
+                if backtrack(assignment):
+                    return True
+                del assignment[next_var]
+            return False
+
+        found = backtrack({})
+        if found and solution is not None:
+            return True, solution
+
+        #return the best assignment we saw
+        if not best_assignment:
+            best_assignment = {v: False for v in range(1, n_vars + 1)}
+        return False, best_assignment
 
     def sat_simple(self, n_vars:int, clauses:List[List[int]]) -> Tuple[bool, Dict[int, bool]]:
         pass
